@@ -5,9 +5,10 @@
   <script src="dropbox.min.js"></script>
   <script src="kloudless.explorer.js"></script>
   <script src="jquery.min.js"></script>
-  <script src="//d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
   <style>
     .node {
+      pointer-events: all;
       stroke: #000000;
       stroke-width: 1.5px;
     }
@@ -19,6 +20,7 @@
 </style>
 </head>
 <body>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
   <button id="file-explorer">Explore!</button>
   <svg width="1110" height="575"></svg>
   <button onclick="clear_svg()">Start Over</button>
@@ -27,11 +29,12 @@
     var KLOUDLESS_TOKEN = "miJq3YNWumvWjX93ISCe18EFnZxtzw";
     var selected = "";
     var nodes = [];
-    function node(id, size, type, start) {
+    function node(id, size, type, start, name) {
       this.id = id;
       this.size = size;
       this.type = type;
       this.start = start;
+      this.name = name;
     }
     var links = [];
     function link(source, target) {
@@ -53,7 +56,7 @@
         selected = folder[0];
         nodes = [];
         links = [];
-        nodes.push(new node(selected.id, null, "folder", true));
+        nodes.push(new node(selected.id, null, "folder", true, selected.name));
         populate(selected.id);
         clear_svg();
         display();
@@ -95,7 +98,7 @@
       var children = list_children(startId);
       if (children) {
         for (var i = 0; i < children.length; i++) {
-          nodes.push(new node(children[i].id, children[i].size, children[i].type, false));
+          nodes.push(new node(children[i].id, children[i].size, children[i].type, false, children[i].name));
           links.push(new link(startId, children[i].id));
           if (children[i].type === "folder") {
             populate(children[i].id);
@@ -110,6 +113,7 @@
     }
 
     function display() {
+      print()
       var svg = d3.select("svg");
       var width = svg.attr("width");
       var height = svg.attr("height");
@@ -119,16 +123,15 @@
         .force("link", d3.forceLink().id(function(d) { return d.id }).distance(25))
         .force("x", d3.forceX(width/2))
         .force("y", d3.forceY(height/2))
-        .on("tick", tick)
-        .nodes(nodes)
-        .force("link").links(links);
 
-      var link = svg.selectAll(".link")
+      var link = svg.append("g")
+        .selectAll(".link")
         .data(links)
         .enter().append("line")
         .attr("class", "link");
 
-      var node = svg.selectAll(".node")
+      var node = svg.append("g")
+        .selectAll(".node")
         .data(nodes)
         .enter().append("circle")
           .attr("class", "node")
@@ -137,7 +140,19 @@
             if (d.start) return "#ff9cce";
             else if (d.type === "folder") return "#9cceff";
             else return "#ceff9c";
-          });
+          })
+          .on("mouseover", mouseover)
+          .on("mouseout", mouseout)
+          .call(d3.drag()
+            .on("start", startdrag)
+            .on("drag", dragging )
+            .on("end", enddrag));
+
+      force
+        .nodes(nodes)
+        .on("tick", tick)
+        .force("link")
+          .links(links);
 
       function tick() {
         link.attr("x1", function(d) { return d.source.x; })
@@ -147,6 +162,41 @@
 
         node.attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; });
+      }
+
+      function startdrag(d) {
+        if (!d3.event.active) {
+          force.alphaTarget(0.25).restart();
+        }
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+
+      function dragging(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+      }
+
+      function enddrag(d) {
+        if (!d3.event.active) {
+          force.alphaTarget(0);
+        }
+        d.fx = null;
+        d.fy = null;
+      }
+
+      function mouseover(d) {
+        d3.select(this)
+          .transition()
+          .duration(500)
+          .attr("r", function(d) { return (d.size == null) ? 12 : d.size/20000 + 5 });
+      }
+
+      function mouseout(d) {
+        d3.select(this)
+          .transition()
+          .duration(500)
+          .attr("r", function(d) { return (d.size == null) ? 7 : d.size/20000 });
       }
     }
 
