@@ -6,6 +6,8 @@
   <script src="kloudless.explorer.js"></script>
   <script src="jquery.min.js"></script>
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="http://code.jquery.com/ui/1.12.0/jquery-ui.min.js"> </script>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.0/themes/base/jquery-ui.css">
   <style>
     .node {
       pointer-events: all;
@@ -17,24 +19,35 @@
       stroke: #cd9cff;
       stroke-width: 1.5px;
     }
+
+    .ui-autocomplete {
+      max-height: 200px;
+      max-width: 200px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
 </style>
 </head>
 <body>
-  <script src="https://d3js.org/d3.v4.min.js"></script>
-  <button id="file-explorer">Explore!</button>
-  <svg width="1110" height="575"></svg>
-  <button onclick="clear_svg()">Start Over</button>
+  <div class="ui-widget">
+    <button id="file-explorer">Start a new visualization!</button><br>
+    <input id="search">
+    <button type="button" onclick="search()">Search</button>
+  </div>
+  <svg width="1110" height="535"></svg>
   <script>
     var KLOUDLESS_APPID = "gydGdNqH2Q7JzMYZIYwL_nH6oUMSMCOIB8JSzJsbnHk5L9iS";
     var KLOUDLESS_TOKEN = "miJq3YNWumvWjX93ISCe18EFnZxtzw";
     var selected = "";
     var nodes = [];
-    function node(id, size, type, start, name) {
+    function node(id, size, type, start, name, modified, path) {
       this.id = id;
       this.size = size;
       this.type = type;
       this.start = start;
       this.name = name;
+      this.modified = modified;
+      this.path = path;
     }
     var links = [];
     function link(source, target) {
@@ -56,7 +69,7 @@
         selected = folder[0];
         nodes = [];
         links = [];
-        nodes.push(new node(selected.id, null, "folder", true, selected.name));
+        nodes.push(new node(selected.id, null, "folder", true, selected.name, selected.modified, selected.path));
         populate(selected.id);
         clear_svg();
         display();
@@ -98,7 +111,7 @@
       var children = list_children(startId);
       if (children) {
         for (var i = 0; i < children.length; i++) {
-          nodes.push(new node(children[i].id, children[i].size, children[i].type, false, children[i].name));
+          nodes.push(new node(children[i].id, children[i].size, children[i].type, false, children[i].name, children[i].modified, children[i].path));
           links.push(new link(startId, children[i].id));
           if (children[i].type === "folder") {
             populate(children[i].id);
@@ -113,14 +126,13 @@
     }
 
     function display() {
-      print()
       var svg = d3.select("svg");
       var width = svg.attr("width");
       var height = svg.attr("height");
 
       var force = d3.forceSimulation()
         .force("charge", d3.forceManyBody().strength(-150))
-        .force("link", d3.forceLink().id(function(d) { return d.id }).distance(25))
+        .force("link", d3.forceLink().id(function(d) { return d.id }).distance(15))
         .force("x", d3.forceX(width/2))
         .force("y", d3.forceY(height/2))
 
@@ -141,18 +153,48 @@
             else if (d.type === "folder") return "#9cceff";
             else return "#ceff9c";
           })
-          .on("mouseover", mouseover)
-          .on("mouseout", mouseout)
+          .on("mouseover", modify(.1, 5))
+          .on("mouseout", modify(1, 0))
           .call(d3.drag()
             .on("start", startdrag)
             .on("drag", dragging )
             .on("end", enddrag));
+
+      node.append("title")
+        .text(function (d) {
+          var title = "Name: " + d.name;
+          title += "\n\nSize: ";
+          if (d.size != null) {
+            title += (d.size/1024).toFixed(2) + " KB";
+          }
+          else title += "Folder";
+          title += "\n\nModified: "
+          if (d.modified != null) {
+            title += d.modified.substring(0, 10);
+          }
+          else title += "N/A";
+          title += "\n\nPath: " + d.path;
+          return title;
+        });
 
       force
         .nodes(nodes)
         .on("tick", tick)
         .force("link")
           .links(links);
+
+      var linkedByIndex = {};
+      links.forEach(function(d) {
+          linkedByIndex[d.source.index + "," + d.target.index] = 1;
+      });
+
+      function isConnected(a, b) {
+          return linkedByIndex[a.index + "," + b.index] || linkedByIndex[b.index + "," + a.index] || a.index == b.index;
+      }
+
+      function isChild(a, b) {
+          return linkedByIndex[a.index + "," + b.index] || a.index == b.index;
+      }
 
       function tick() {
         link.attr("x1", function(d) { return d.source.x; })
@@ -162,6 +204,25 @@
 
         node.attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; });
+      }
+
+      function modify(opacity, size) {
+        return function(d) {
+          node.style("stroke-opacity", function(o) {
+              thisOpacity = isConnected(d, o) ? 1 : opacity;
+              this.setAttribute('fill-opacity', thisOpacity);
+              return thisOpacity;
+          });
+
+          link.style("stroke-opacity", function(o) {
+              return o.source === d || o.target === d ? 1 : opacity;
+          });
+
+          d3.select(this)
+          .transition()
+          .duration(150)
+          .attr("r", function(d) { return (d.size == null) ? 7 + size : d.size/20000 + size });
+        };
       }
 
       function startdrag(d) {
@@ -185,19 +246,39 @@
         d.fy = null;
       }
 
-      function mouseover(d) {
-        d3.select(this)
-          .transition()
-          .duration(500)
-          .attr("r", function(d) { return (d.size == null) ? 12 : d.size/20000 + 5 });
+      var optArray = [];
+      for (var i = 0; i < nodes.length; i++) {
+          optArray.push(nodes[i].name);
       }
+      optArray = optArray.sort();
+      $(function () {
+          $("#search").autocomplete({
+              source: optArray
+          });
+      });
 
-      function mouseout(d) {
-        d3.select(this)
-          .transition()
-          .duration(500)
-          .attr("r", function(d) { return (d.size == null) ? 7 : d.size/20000 });
+      this.search = function() {
+        var selectedVal = document.getElementById('search').value;
+        var node = svg.selectAll(".node");
+        if (selectedVal != "") {
+          var selected = node.filter(function (d, i) {
+              return d.name != selectedVal;
+          });
+          if (selected["_groups"][0].length != node["_groups"][0].length) {
+            selected.style("opacity", "0");
+            var link = svg.selectAll(".link")
+            link.style("opacity", "0");
+            d3.selectAll(".node, .link").transition()
+                .duration(5000)
+                .style("opacity", 1);
+          }
+        }
       }
+    }
+
+    function search() {
+      var searcher = new display()
+      searcher.search();
     }
 
     function clear_svg() {
