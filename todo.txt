@@ -1,0 +1,6 @@
+todo: 
+
+color nodes by file or folder, color start node something else
+files should be sized based on actual size
+hover gives tooltip with info and highlights all children
+should be able to search by name attribute 

@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <title>Dropbox Visualizer</title>
+  <script src="dropbox.min.js"></script>
+  <script src="kloudless.explorer.js"></script>
+  <script src="jquery.min.js"></script>
+  <script src="//d3js.org/d3.v4.min.js"></script>
+  <style>
+    .node {
+      stroke: #000000;
+      stroke-width: 1.5px;
+    }
+
+    .link {
+      stroke: #cd9cff;
+      stroke-width: 1.5px;
+    }
+</style>
+</head>
+<body>
+  <button id="file-explorer">Explore!</button>
+  <svg width="1110" height="575"></svg>
+  <button onclick="clear_svg()">Start Over</button>
+  <script>
+    var KLOUDLESS_APPID = "gydGdNqH2Q7JzMYZIYwL_nH6oUMSMCOIB8JSzJsbnHk5L9iS";
+    var KLOUDLESS_TOKEN = "miJq3YNWumvWjX93ISCe18EFnZxtzw";
+    var selected = "";
+    var nodes = [];
+    function node(id, size, type, start) {
+      this.id = id;
+      this.size = size;
+      this.type = type;
+      this.start = start;
+    }
+    var links = [];
+    function link(source, target) {
+      this.source = source;
+      this.target = target;
+    }
+    var present = false; 
+
+    function kloudless_populate() {
+      var explorer = window.Kloudless.explorer({
+        app_id: KLOUDLESS_APPID,
+        multiselect: false,
+        link: true,
+        create_folder: false,
+        types: ['folders']
+      });
+      explorer.choosify(document.getElementById('file-explorer'));
+      explorer.on('success', function(folder) {
+        selected = folder[0];
+        nodes = [];
+        links = [];
+        nodes.push(new node(selected.id, null, "folder", true));
+        populate(selected.id);
+        clear_svg();
+        display();
+      });
+    }
+    kloudless_populate();
+
+    function list_children(id) {
+      var url = "https://api.kloudless.com/v0/accounts/166603373/folders/" + id + "/contents";
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("GET", url, false);
+      xhttp.setRequestHeader("Authorization", "Bearer " + KLOUDLESS_TOKEN);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.send();
+      return JSON.parse(xhttp.responseText).objects;
+    }
+
+    function get_file_metadata(id) {
+      var url = "https://api.kloudless.com/v0/accounts/166603373/files/" + id;
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("GET", url, false);
+      xhttp.setRequestHeader("Authorization", "Bearer " + KLOUDLESS_TOKEN);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.send();
+      return JSON.parse(xhttp.responseText);
+    }
+
+    function get_folder_metadata(id) {
+      var url = "https://api.kloudless.com/v0/accounts/166603373/folders/" + id;
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("GET", url, false);
+      xhttp.setRequestHeader("Authorization", "Bearer " + KLOUDLESS_TOKEN);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.send();
+      return JSON.parse(xhttp.responseText);
+    }
+
+    function populate(startId) {
+      var children = list_children(startId);
+      if (children) {
+        for (var i = 0; i < children.length; i++) {
+          nodes.push(new node(children[i].id, children[i].size, children[i].type, false));
+          links.push(new link(startId, children[i].id));
+          if (children[i].type === "folder") {
+            populate(children[i].id);
+          }
+        }
+      }
+    }
+
+    function print() {
+      console.log(JSON.stringify(nodes));
+      console.log(JSON.stringify(links));
+    }
+
+    function display() {
+      var svg = d3.select("svg");
+      var width = svg.attr("width");
+      var height = svg.attr("height");
+
+      var force = d3.forceSimulation()
+        .force("charge", d3.forceManyBody().strength(-150))
+        .force("link", d3.forceLink().id(function(d) { return d.id }).distance(25))
+        .force("x", d3.forceX(width/2))
+        .force("y", d3.forceY(height/2))
+        .on("tick", tick)
+        .nodes(nodes)
+        .force("link").links(links);
+
+      var link = svg.selectAll(".link")
+        .data(links)
+        .enter().append("line")
+        .attr("class", "link");
+
+      var node = svg.selectAll(".node")
+        .data(nodes)
+        .enter().append("circle")
+          .attr("class", "node")
+          .attr("r", function(d) { return (d.size == null) ? 7 : d.size/20000 })
+          .style("fill", function(d) {
+            if (d.start) return "#ff9cce";
+            else if (d.type === "folder") return "#9cceff";
+            else return "#ceff9c";
+          });
+
+      function tick() {
+        link.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        node.attr("cx", function(d) { return d.x; })
+            .attr("cy", function(d) { return d.y; });
+      }
+    }
+
+    function clear_svg() {
+      var svg = d3.select("svg");
+      svg.selectAll("*").remove();
+    }
+  </script>
+</body>
+</html>
