@@ -14,8 +14,14 @@
     body {
       background-color: #e9f4ff;
     }
+
     h1 {
       color:#ffc183;
+    }
+
+    #search_button {
+      padding-left: 8px;
+      padding-right: 8px;
     }
     .node {
       pointer-events: all;
@@ -49,9 +55,10 @@
     <h1>Welcome to the Cloud Visualizer!</h1>
     <p>This tool allows you to visualize a folder and its children in one of your cloud services.</p>
     <p>The <span style="background-color:#ff9cce">pink</span> node is the root folder. <span style="background-color:#9cceff">Blue</span> nodes are folders. <span style="background-color:#ceff9c">Green</span> nodes are files. Hover for more information, click to drag!</p>
-    <button id="file-explorer">Click to start a new visualization!</button><br><br>
+    <button id="file-explorer">Click to start a new visualization!</button>
+    <span>(to choose a folder, enter it in the gui, <i>then</i> press "Select")<br><br>
     <input id="search">
-    <button type="button" onclick="search()">Search</button>
+    <button type="button" id="search_button" onclick="search()">Search</button>
     <span>(other nodes will fade out, revealing the node you searched for)</span>
   </div>
   <script>
@@ -85,6 +92,7 @@
       });
       explorer.choosify(document.getElementById('file-explorer'));
       explorer.on('success', function(folder) {
+        alert("Root folder selected. Requests to your cloud may take time. Please be patient as the visualization is generated (it will display automatically when ready).")
         selected = folder[0];
         accountId = selected.account;
         nodes = [];
@@ -96,7 +104,7 @@
       });
       var error_count = 0;
       explorer.on('error', function(error) {
-        alert("Kloudless seems to be unavailable. Please try again later.");
+        alert("Your cloud seems to be unavailable. Please try again later.");
       });
     }
     kloudless_populate();
