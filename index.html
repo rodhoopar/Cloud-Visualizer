@@ -6,9 +6,17 @@
   <script src="kloudless.explorer.js"></script>
   <script src="jquery.min.js"></script>
   <script src="https://d3js.org/d3.v4.min.js"></script>
-  <script src="http://code.jquery.com/ui/1.12.0/jquery-ui.min.js"> </script>
+  <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"> </script>
   <link rel="stylesheet" href="//code.jquery.com/ui/1.12.0/themes/base/jquery-ui.css">
+  <script src="d3-tip.js"> </script>
+  <link rel="stylesheet" href="//rawgithub.com/Caged/d3-tip/master/examples/example-styles.css">
   <style>
+    body {
+      background-color: #e9f4ff;
+    }
+    h1 {
+      color:#ffc183;
+    }
     .node {
       pointer-events: all;
       stroke: #000000;
@@ -26,35 +34,45 @@
       overflow-y: auto;
       overflow-x: hidden;
     }
+
+    .d3-tip {
+      line-height: 1;
+      color: white;
+      font-size: 14px;
+      font-weight: normal;
+      padding: 8px;
+    }
 </style>
 </head>
 <body>
   <div class="ui-widget">
-    <button id="file-explorer">Start a new visualization!</button><br>
+    <h1>Welcome to the Cloud Visualizer!</h1>
+    <p>This tool allows you to visualize a folder and its children in one of your cloud services.</p>
+    <p>The <span style="background-color:#ff9cce">pink</span> node is the root folder. <span style="background-color:#9cceff">Blue</span> nodes are folders. <span style="background-color:#ceff9c">Green</span> nodes are files. Hover for more information, click to drag!</p>
+    <button id="file-explorer">Click to start a new visualization!</button><br><br>
     <input id="search">
     <button type="button" onclick="search()">Search</button>
+    <span>(other nodes will fade out, revealing the node you searched for)</span>
   </div>
-  <svg width="1110" height="535"></svg>
   <script>
     var KLOUDLESS_APPID = "gydGdNqH2Q7JzMYZIYwL_nH6oUMSMCOIB8JSzJsbnHk5L9iS";
     var KLOUDLESS_TOKEN = "miJq3YNWumvWjX93ISCe18EFnZxtzw";
     var selected = "";
     var nodes = [];
-    function node(id, size, type, start, name, modified, path) {
+    function node(id, size, type, start, name, modified) {
       this.id = id;
       this.size = size;
       this.type = type;
       this.start = start;
       this.name = name;
       this.modified = modified;
-      this.path = path;
     }
     var links = [];
     function link(source, target) {
       this.source = source;
       this.target = target;
     }
-    var present = false; 
+    var accountId; 
 
     function kloudless_populate() {
       var explorer = window.Kloudless.explorer({
@@ -62,48 +80,69 @@
         multiselect: false,
         link: true,
         create_folder: false,
-        types: ['folders']
+        types: ['folders'],
+        services: ['dropbox']
       });
       explorer.choosify(document.getElementById('file-explorer'));
       explorer.on('success', function(folder) {
         selected = folder[0];
+        accountId = selected.account;
         nodes = [];
         links = [];
-        nodes.push(new node(selected.id, null, "folder", true, selected.name, selected.modified, selected.path));
+        nodes.push(new node(selected.id, null, "folder", true, selected.name, selected.modified));
         populate(selected.id);
         clear_svg();
         display();
+      });
+      var error_count = 0;
+      explorer.on('error', function(error) {
+        alert("Kloudless seems to be unavailable. Please try again later.");
       });
     }
     kloudless_populate();
 
     function list_children(id) {
-      var url = "https://api.kloudless.com/v0/accounts/166603373/folders/" + id + "/contents";
+      var url = "https://api.kloudless.com/v0/accounts/" + accountId + "/folders/" + id + "/contents";
       var xhttp = new XMLHttpRequest();
       xhttp.open("GET", url, false);
       xhttp.setRequestHeader("Authorization", "Bearer " + KLOUDLESS_TOKEN);
       xhttp.setRequestHeader("Content-Type", "application/json");
-      xhttp.send();
+      try {
+        xhttp.send();
+      }
+      catch(e) {
+        alert("Kloudless could not access all your files; some may be missing from the visualization. You may want to try again or refresh the page.");
+      }
       return JSON.parse(xhttp.responseText).objects;
     }
 
     function get_file_metadata(id) {
-      var url = "https://api.kloudless.com/v0/accounts/166603373/files/" + id;
+      var url = "https://api.kloudless.com/v0/accounts/" + accountId + "/files/" + id;
       var xhttp = new XMLHttpRequest();
       xhttp.open("GET", url, false);
       xhttp.setRequestHeader("Authorization", "Bearer " + KLOUDLESS_TOKEN);
       xhttp.setRequestHeader("Content-Type", "application/json");
-      xhttp.send();
+      try {
+        xhttp.send();
+      }
+      catch(e) {
+        alert("Kloudless could not access all your files; some may be missing from the visualization. You may want to try again or refresh the page.");
+      }
       return JSON.parse(xhttp.responseText);
     }
 
     function get_folder_metadata(id) {
-      var url = "https://api.kloudless.com/v0/accounts/166603373/folders/" + id;
+      var url = "https://api.kloudless.com/v0/accounts/" + accountId + "/folders/" + id;
       var xhttp = new XMLHttpRequest();
       xhttp.open("GET", url, false);
       xhttp.setRequestHeader("Authorization", "Bearer " + KLOUDLESS_TOKEN);
       xhttp.setRequestHeader("Content-Type", "application/json");
-      xhttp.send();
+      try {
+        xhttp.send();
+      }
+      catch(e) {
+        alert("Kloudless could not access all your files; some may be missing from the visualization. You may want to try again or refresh the page.");
+      }
       return JSON.parse(xhttp.responseText);
     }
 
@@ -111,7 +150,7 @@
       var children = list_children(startId);
       if (children) {
         for (var i = 0; i < children.length; i++) {
-          nodes.push(new node(children[i].id, children[i].size, children[i].type, false, children[i].name, children[i].modified, children[i].path));
+          nodes.push(new node(children[i].id, children[i].size, children[i].type, false, children[i].name, children[i].modified));
           links.push(new link(startId, children[i].id));
           if (children[i].type === "folder") {
             populate(children[i].id);
@@ -126,12 +165,34 @@
     }
 
     function display() {
-      var svg = d3.select("svg");
-      var width = svg.attr("width");
-      var height = svg.attr("height");
+      var width = $(window).width();
+      var height = $(window).height();
+
+      var svg = d3.select("body").append("svg")
+        .attr("width", width)
+        .attr("height", height - 60);
+
+      var tip = d3.tip()
+          .attr('class', 'd3-tip')
+          .offset([-10, 0])
+          .html(function (d) {
+            var title = "<span style=\"color:#ff9b37;\">Name: </span>" + d.name;
+            title += "<br><span style=\"color:#ff9b37;\">Size: </span>";
+            if (d.size != null) {
+              title += (d.size/1024).toFixed(2) + " KB";
+            }
+            else title += "Folder";
+            title += "<br><span style=\"color:#ff9b37;\">Modified: </span>"
+            if (d.modified != null) {
+              title += d.modified.substring(0, 10);
+            }
+            else title += "N/A";
+            return title;
+          });
+      svg.call(tip);
 
       var force = d3.forceSimulation()
-        .force("charge", d3.forceManyBody().strength(-150))
+        .force("charge", d3.forceManyBody().strength(-75))
         .force("link", d3.forceLink().id(function(d) { return d.id }).distance(15))
         .force("x", d3.forceX(width/2))
         .force("y", d3.forceY(height/2))
@@ -147,7 +208,13 @@
         .data(nodes)
         .enter().append("circle")
           .attr("class", "node")
-          .attr("r", function(d) { return (d.size == null) ? 7 : d.size/20000 })
+          .attr("r", function(d) {
+            if (d.size == null) return 7;
+            var size = d.size/20000;
+            if (size < 2) return 2;
+            else if (size > 13) return 13;
+            else return size;
+          })
           .style("fill", function(d) {
             if (d.start) return "#ff9cce";
             else if (d.type === "folder") return "#9cceff";
@@ -160,22 +227,22 @@
             .on("drag", dragging )
             .on("end", enddrag));
 
-      node.append("title")
-        .text(function (d) {
-          var title = "Name: " + d.name;
-          title += "\n\nSize: ";
-          if (d.size != null) {
-            title += (d.size/1024).toFixed(2) + " KB";
-          }
-          else title += "Folder";
-          title += "\n\nModified: "
-          if (d.modified != null) {
-            title += d.modified.substring(0, 10);
-          }
-          else title += "N/A";
-          title += "\n\nPath: " + d.path;
-          return title;
-        });
+      // node.append("title")
+      //   .text(function (d) {
+      //     var title = "Name: " + d.name;
+      //     title += "\n\nSize: ";
+      //     if (d.size != null) {
+      //       title += (d.size/1024).toFixed(2) + " KB";
+      //     }
+      //     else title += "Folder";
+      //     title += "\n\nModified: "
+      //     if (d.modified != null) {
+      //       title += d.modified.substring(0, 10);
+      //     }
+      //     else title += "N/A";
+      //     title += "\n\nPath: " + d.path;
+      //     return title;
+      //   });
 
       force
         .nodes(nodes)
@@ -218,10 +285,21 @@
               return o.source === d || o.target === d ? 1 : opacity;
           });
 
+          if (opacity == 1) {
+            tip.hide(d);
+          }
+          else tip.show(d);
+
           d3.select(this)
           .transition()
           .duration(150)
-          .attr("r", function(d) { return (d.size == null) ? 7 + size : d.size/20000 + size });
+          .attr("r", function(d) {
+            if (d.size == null) return 7 + size;
+            var old_size = d.size/20000;
+            if (old_size < 2) return 2 + size; 
+            else if (old_size > 13) return 13 + size;
+            else return old_size + size; 
+          });
         };
       }
 
@@ -269,7 +347,7 @@
             var link = svg.selectAll(".link")
             link.style("opacity", "0");
             d3.selectAll(".node, .link").transition()
-                .duration(5000)
+                .duration(4000)
                 .style("opacity", 1);
           }
         }
@@ -282,8 +360,7 @@
     }
 
     function clear_svg() {
-      var svg = d3.select("svg");
-      svg.selectAll("*").remove();
+      var svg = d3.select("svg").remove();
     }
   </script>
 </body>
