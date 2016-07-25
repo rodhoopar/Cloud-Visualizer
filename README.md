@@ -2,7 +2,9 @@
 
 This tool allows you to visualize a folder and all of its children in one of your cloud services as a graph. For example: 
 
-![Screenshot](https://raw.github.com/rodhoopar/cloud-visualizer/master/examples/demo.png)
+<p align="center">
+  <img src="https://raw.github.com/rodhoopar/cloud-visualizer/master/examples/demo.png"/>
+</p>
 
 Try it out yourself [here](rodhoopar.github.io/cloud-visualizer). 
 
