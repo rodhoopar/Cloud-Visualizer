@@ -208,10 +208,13 @@ function display() {
     factor = 2;
   }
   else if (nodes.length > 1000) {
-    factor = 3;
-  }
-  else if (nodes.length > 1500) {
     factor = 4;
+  }
+  else if (nodes.length > 2000) {
+    factor = 8;
+  }
+  else if (nodes.length > 4000) {
+    factor = 16; 
   }
   width *= factor; 
   height *= factor; 
