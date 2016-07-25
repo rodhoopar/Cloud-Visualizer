@@ -481,7 +481,7 @@ function toggle_sticky() {
   sticky = !sticky;
 
   //Adjust inner HTML
-  var sticky_button = document.getElementById("toggle_sticky");
+  var sticky_button = document.getElementById("right");
   if (sticky) {
     sticky_button.innerHTML = "Click to toggle sticky nodes (currently ON)";
   }
