@@ -15,4 +15,4 @@ Full capabilities include:
 * Graph modification on vertex drag, including toggleable "stickiness" 
 * Search with autocomplete suggestions
 
-Built using Kloudless, d3.js, and jQuery. 
+Built using Kloudless, d3.js, and jQuery. More clouds to be added.
