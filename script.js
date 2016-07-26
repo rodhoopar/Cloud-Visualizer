@@ -48,7 +48,10 @@ function main() {
 
   //Gathering and visualization logic after starting folder has been selected
   explorer.on('success', function(folder) {
-    sweetAlert("Starting folder selected!", "Now generating the visualization. It will automatically display when ready.", "success");
+    sweetAlert("Starting folder selected!", 
+    			"NOTE: If the visualization appears stacked in the top left corner, click on it \
+    			to center. This is being worked on.", 
+    			"success");
     selected = folder[0];
     KLOUDLESS_TOKEN = selected.bearer_token.key;
     accountId = selected.account;
