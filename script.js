@@ -275,12 +275,9 @@ function display() {
 
   //Begin the d3 force simulation
   var force = d3.forceSimulation()
-  	.force("link", d3.forceLink().id(function(d) { return d.id; }))
-    .force("charge", d3.forceManyBody())
+    .force("charge", d3.forceManyBody().strength(-50))
+    .force("link", d3.forceLink().id(function(d) { return d.id }).distance(15))
     .force("center", d3.forceCenter(width / 2, height / 2))
-    // .force("charge", d3.forceManyBody().strength(-50))
-    // .force("link", d3.forceLink().id(function(d) { return d.id }).distance(15))
-    // .force("center", d3.forceCenter(width / 2, height / 2))
     .force("x", d3.forceX(width/2))
     .force("y", d3.forceY(height/2));
 
