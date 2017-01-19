@@ -6,7 +6,7 @@ This tool allows you to visualize a folder and all of its children in one of you
   <img src="https://raw.github.com/rodhoopar/cloud-visualizer/master/examples/demo.png"/>
 </p>
 
-Try it out yourself [here](https://rodhoopar.github.io/cloud-visualizer). 
+Try it out yourself [here](https://rodhoopar.github.io/Cloud-Visualizer). 
 
 Full capabilities include: 
 * Vertex coloring based on what it represents 
